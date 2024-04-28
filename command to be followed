@@ -1,0 +1,32 @@
+sudo apt install qemu-system qemu-user qemu-efi-aarch64
+
+ mkdir -p ~/qemu-vms/debian
+
+cd ~/qemu-vms/debian
+
+wget http://ftp.debian.org/debian/dists/stable/main/installer-arm64/current/images/netboot/debian-installer/arm64/linux
+
+wget http://ftp.debian.org/debian/dists/stable/main/installer-arm64/current/images/netboot/debian-installer/arm64/initrd.gz
+
+qemu-img create -f qcow2 debian.qcow 10G
+
+qemu-system-aarch64 -machine virt -smp 2 -cpu max -m 4G     -initrd initrd.gz     -kernel linux     -drive file=debian.qcow,if=virtio     -nic user,model=e1000     -nographic
+
+pkill qemu
+
+sudo modprobe nbd
+
+sudo qemu-nbd --connect=/dev/nbd0 debian.qcow
+
+mkdir mnt
+
+sudo mount /dev/nbd0p1 ./mnt
+
+sudo cp mnt/initrd.img-6.1.0-20-arm64 mnt/vmlinuz-6.1.0-20-arm64
+
+
+sudo umount ./mnt
+
+sudo qemu-nbd -d /dev/nbd0
+
+sudo qemu-system-aarch64 -machine virt -cpu max -smp 4 -m 4G        -initrd initrd.img-6.1.0-20-arm64      -kernel vmlinuz-6.1.0-20-arm64  -append "root=/dev/sda2"        -device virtio-scsi-device -device scsi-hd,drive=hackd         -drive file=debian.qcow,if=none,id=hackd        -device e1000,netdev=hacknd     -netdev user,id=hacknd,hostfwd=tcp::4444-:22   -nographic
